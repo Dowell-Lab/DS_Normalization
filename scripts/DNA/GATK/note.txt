@@ -1,0 +1,18 @@
+python run_bwa.py #done
+python run_convert.py #done
+python run_merge.py #done
+python run_recal.py #start cheking here... bams may have an issue
+python run_haplotype.py
+source cohortsvenv/bin/activate
+python create_cohortmaps.py
+deactivate
+python run_makeGenomeBDforjoin.py
+python run_famvcf.py
+python run_familyfull.py
+python run_ann.py
+#then I had to gunzip the vcfs and rezip with bgzip
+#then run tabix to get the vcf into the format I need for pyvcf 
+
+python run_index_bam.py
+
+python run_vrecal.py #something wrong with this script. I think it got coppied over 

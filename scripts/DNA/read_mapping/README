@@ -1,0 +1,20 @@
+
+THere are lots of genome fastq files. 
+Set 1) Family A done paird end by illumnia
+Set 2) Family B, C, D, E paired end by illumnia
+Set 3) Paired end Family E done by Josephina on two types of beads. This was to check that the genotypes had not changed after the GRO-seq
+set 4) Bob and Doug extra seq done by Josephina to try and help the fact that the quality was lower on those two. Single end. 
+
+I map the individual files. 
+Convert them to sorted bams then merge them using picard tools. I do it this was so that I can mark reads with rg-ids. rg-ids are used by GATK to adjust quality scores. 
+
+Run the following programs in this order. 
+
+
+1) python run_hisat2.py #this runs mappinghisat2.sh for each fastq 
+2) python run_convert.py
+3) python run_merge.py 
+
+Make sure to delete the sams and unsorted bams. 
+
+
