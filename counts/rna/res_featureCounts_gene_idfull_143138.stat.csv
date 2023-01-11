@@ -1,0 +1,15 @@
+"","Status","Eli.repA.tech1.sorted.bam","Eli.repB.tech1.2.sorted.bam","Eli.repC.tech1.sorted.bam","Elizabeth.repA.tech1.sorted.bam","Elizabeth.repB.tech1.2.sorted.bam","Elizabeth.repC.tech1.sorted.bam","Eric.repA.tech1.sorted.bam","Eric.repB.tech1.2.sorted.bam","Eric.repC.tech1.sorted.bam","Ethan.repA.tech1.sorted.bam","Ethan.repB.tech1.2.sorted.bam","Ethan.repC.tech1.sorted.bam"
+"1","Assigned",37238496,102891856,101364556,33997726,58407372,98422204,25725459,89345659,69089487,30334113,82990661,33520940
+"2","Unassigned_Unmapped",4394064,2177148,20937841,3795038,1448301,3350698,3373066,1274965,4205554,5434510,803843,5581831
+"3","Unassigned_Read_Type",0,0,0,0,0,0,0,0,0,0,0,0
+"4","Unassigned_Singleton",0,0,0,0,0,0,0,0,0,0,0,0
+"5","Unassigned_MappingQuality",0,0,0,0,0,0,0,0,0,0,0,0
+"6","Unassigned_Chimera",0,0,0,0,0,0,0,0,0,0,0,0
+"7","Unassigned_FragmentLength",0,0,0,0,0,0,0,0,0,0,0,0
+"8","Unassigned_Duplicate",0,0,0,0,0,0,0,0,0,0,0,0
+"9","Unassigned_MultiMapping",0,0,0,0,0,0,0,0,0,0,0,0
+"10","Unassigned_Secondary",0,0,0,0,0,0,0,0,0,0,0,0
+"11","Unassigned_NonSplit",0,0,0,0,0,0,0,0,0,0,0,0
+"12","Unassigned_NoFeatures",23244695,22575482,61697294,21466367,16954622,11697836,24581145,13504416,15589696,23807974,17038435,20885139
+"13","Unassigned_Overlapping_Length",0,0,0,0,0,0,0,0,0,0,0,0
+"14","Unassigned_Ambiguity",0,0,0,0,0,0,0,0,0,0,0,0
