@@ -1,0 +1,17 @@
+file	person	rep	libprep	ploidy
+Eli__repA_counts.bed	Eli	repA	A	ploidy_typical
+Eli__repB_counts.bed	Eli	repB	B	ploidy_typical
+Eli__repBss_counts.bed	Eli	repBss	B	ploidy_typical
+Eli__repC_counts.bed	Eli	repC	C	ploidy_typical
+Elizabeth__repA_counts.bed	Elizabeth	repA	A	ploidy_typical
+Elizabeth__repB_counts.bed	Elizabeth	repB	B	ploidy_typical
+Elizabeth__repBss_counts.bed	Elizabeth	repBss	B	ploidy_typical
+Elizabeth__repC_counts.bed	Elizabeth	repC	C	ploidy_typical
+Eric__repA_counts.bed	Eric	repA	A	ploidy_typical
+Eric__repB_counts.bed	Eric	repB	B	ploidy_typical
+Eric__repBss_counts.bed	Eric	repBss	B	ploidy_typical
+Eric__repC_counts.bed	Eric	repC	C	ploidy_typical
+Ethan__repA_counts.bed	Ethan	repA	A	ploidy_trisomy21
+Ethan__repB_counts.bed	Ethan	repB	B	ploidy_trisomy21
+Ethan__repBss_counts.bed	Ethan	repBss	B	ploidy_trisomy21
+Ethan__repC_counts.bed	Ethan	repC	C	ploidy_trisomy21
