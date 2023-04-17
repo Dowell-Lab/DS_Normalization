@@ -1,28 +1,23 @@
-library("reshape2")
-library("plyr")
+# The following script was used to generate CDF distributions of the fold-changes observed in differential analysis
+
 library("ggplot2")
-library("miscTools")
-library("stringr")
-library("tidyr")
-library("dplyr")
-library(plyr)
+library("tidyverse")
 theme_set(
   theme_classic(base_size = 18)
 )
-# Filter to genes which are in both RNA and GRO annotations
-RNAindir<-"/Shares/down/mixed/RNAGRO01132021/data/RNAseqfiles/"
-GROseq_indir<-"/Shares/down/mixed/RNAGRO01132021/data/GROfiles/"
+########RNA-SEQ#######
+RNAindir<-"DS_Normalization/counts/rna"
+GROseq_indir<-"DS_Normalization/counts/gro"
 RNAcoveragedat<-"res_featureCounts_gene_idfull_143138.coverage.csv"
 
 #Below is the bed that got used for RNA-seq. 
-#This is not the bed file that got used for GRO-seq exactly becuase to be acuurate in the GROS-seq I had to remove any gene bodys/tss that were in the data more than once. 
-ori_worldbed <- "/scratch/Shares/dowell/genomes/hg38/hg38_refseq.bed"
-#Below are the bed file I used for GRO-seq anaysis
-#genes.bed and tss.bed came from /Users/allenma/humangtf.ipynb
-#in breif i keep the longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
-#I also removed gene <3000bp and genes whose body or tss <0 in coordinates
-#below I will only keep genes that were anayized by both GR0-seq and RNA-seq
-beddir<-"/Shares/down/mixed/RNAGRO01132021/data/bedfiles/"
+# To standardize RNA-seq and GRO-seq comparisons, any gene bodys/tss that were in the data more than once were removed. 
+ori_worldbed <- "DS_Normalization/annotation/hg38_refseq.bed"
+# Below are the bed file used for GRO-seq anaysis
+# Filtered to Longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
+# Also removed gene <3000bp and genes whose body or tss <0 in coordinates
+# only keep genes that were analyzed by both GR0-seq and RNA-seq
+beddir<-"DS_Normalization/annotation"
 GROann <- paste(beddir,"masterannotation.bedlike",sep="")
 RNAann <-paste(RNAindir, "res_featureCounts_gene_idfull_143138.annotation.csv", sep="")
 
@@ -54,34 +49,31 @@ masterannotationdf <- annotationmerge
 masterannotationdf_only21 <- masterannotationdf %>% filter(chr=="chr21")
 
 #this is loading the metadata
-RNAmetadata=read.table("/Shares/down/mixed/RNAGRO01132021/scripts/Deseq2_analysis/RNAinfo.txt", sep="\t", header=TRUE)
+RNAmetadata=read.table("/DS_Normalization/annotation/RNAinfo.txt", sep="\t", header=TRUE)
 RNAmetadata$samplegroup <-paste(RNAmetadata$Person, "_", RNAmetadata$biological_rep, sep="")
 
-RNAcountdat <- read.csv("/scratch/Users/sahu0957/ds_normalization/RNA/nextflowhg38_20220214/counts/featurecounts_rna_withmultis.sense.txt",
+RNAcountdat <- read.csv("/DS_Normalization/counts/featurecounts_rna_withmultis.sense.txt",
                         sep="\t", skip=1)
-
-head(RNAcountdat)
-# If you instead want to look at CDF for all genes, 
 
 RNAcountdat<- RNAcountdat %>%
     filter(Geneid %in% annotationmerge$name) %>%
   arrange(Geneid)
 
+# Filter to maximal isoform
 RNAcountdat$sum <- rowSums(RNAcountdat[,7:ncol(RNAcountdat)])/RNAcountdat$Length
 RNAcountdat <- merge(RNAcountdat,common_ids,by.x=1,by.y=1)
 RNAcountdat <- (RNAcountdat[order(RNAcountdat$V2,-RNAcountdat$sum),])
 RNAcountdat <- (RNAcountdat[!(duplicated(RNAcountdat$V2)),])
 RNAcountdat <- subset(RNAcountdat, select=-c(V2,sum))
 nrow(RNAcountdat)
+
 # Further filter to those common between RNA and GRO
 RNAcountdat<- RNAcountdat %>%
   filter(Geneid %in% masterannotationdf$name) %>%
   arrange(Geneid)
 rownames(RNAcountdat) <- RNAcountdat$Geneid
 
-
-
-# Some duplicated entries
+# If there are some duplicated entries
 RNAcountdat <- RNAcountdat[!(duplicated(RNAcountdat$Geneid)),]
 rownames(RNAcountdat) <- RNAcountdat$Geneid
 
@@ -99,18 +91,13 @@ ncol(resdata)
 rownames(annotationmerge) <- annotationmerge$GeneID
 
 fullresdata <- merge(resdata,annotationmerge,by.x=0,by.y=0)
-fullresdata
 RNA_uncorrected_fullresdata <- fullresdata
 fullresdata <- fullresdata[fullresdata$chr %in% minichrs,]
-fullresdata
-#write.csv(fullresdata,"/scratch/Shares/dowell/for_marya/ds_normalization/deseq2/uncorrected_RNA_results.csv",sep=",")
-
 
 # fetching medians data
 
 medresdata <- fullresdata[!(is.na(fullresdata$log2FoldChange)),]
 medians <- ddply(medresdata, .(chr), summarise, med = 2^(median(log2FoldChange)))
-medians
 fullresdata$chr <- factor(fullresdata$chr, levels=minichrs)
 
 # Draw ECDF Plot
@@ -119,16 +106,6 @@ CDF
 # draw CDF Plot
 fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
 
-sd(na.omit(fullresdata$log2FoldChange))
-sd(na.omit(fullresdata[fullresdata$chr!="chr21",]$log2FoldChange))
-log2(1.5)-(2*sd(na.omit(fullresdata[fullresdata$chr!="chr21",]$log2FoldChange)))
-median(fullresdata[fullresdata$chr!="chr21" & !(is.na(fullresdata$log2FoldChange)),]$log2FoldChange)
-nrow(fullresdata[fullresdata$chr=="chr22" & !(is.na(fullresdata$log2FoldChange)),])
-110/570
-nrow(fullresdata[fullresdata$chr=="chr21" & !(is.na(fullresdata$log2FoldChange)) & 
-                   fullresdata$log2FoldChange<(log2(1.5)-(0*sd(na.omit(fullresdata[fullresdata$chr!="chr21",]$log2FoldChange)))),])
-190/309
-fullresdata
 ggplot(fullresdata, aes(x = log2FoldChange,color=chr)) +
   stat_ecdf() +
   xlim(-2,2) +
@@ -138,30 +115,30 @@ ggplot(fullresdata, aes(x = log2FoldChange,color=chr)) +
              color="purple",linetype="dotted") +
   theme_classic()
 
-nrow(fullresdata[fullresdata$chr=="chr21" & fullresdata$log2FoldChange<(-1.1),])
-
-#ggsave("rnaseq_ethaneric_cdf_chr22_bettersd.svg",path = "/scratch/Users/sahu0957/ds_normalization/figs",device = "svg")
-#ggsave("rnaseq_ethaneric_cdf_chr22_bettersd.png",path = "/scratch/Users/sahu0957/ds_normalization/figs",device = "png")
-
-
 #### Uncorrected GRO-seq ####
 #### UNCORRECTED REAL DATA GRO-SEQ RUN####
 #traditional Deseq2 on on GRO count matrix's
 
-GROseq_indir<-"/Shares/down/mixed/RNAGRO01132021/data/GROfiles/"
-GROmetadata=read.table("/Shares/down/mixed/RNAGRO01132021/scripts/Deseq2_analysis/GROinfo.txt", sep="\t", header=TRUE)
+GROseq_indir<-"DS_Normalization/counts/gro"
+GROmetadata=read.table("DS_Normalization/metadata/GROinfo.txt", sep="\t", header=TRUE)
 GROmetadata$samplegroup <-paste(GROmetadata$person, "_", GROmetadata$libprep, sep="")
+
+########RNA-SEQ#######
+RNAindir<-"DS_Normalization/counts/rna"
+GROseq_indir<-"DS_Normalization/counts/gro"
+RNAcoveragedat<-"res_featureCounts_gene_idfull_143138.coverage.csv"
+
 #Below is the bed that got used for RNA-seq. 
-#This is not the bed file that got used for GRO-seq exactly becuase to be acuurate in the GROS-seq I had to remove any gene bodys/tss that were in the data more than once. 
-ori_worldbed <- "/scratch/Shares/dowell/genomes/hg38/hg38_refseq.bed"
-#Below are the bed file I used for GRO-seq anaysis
-#genes.bed and tss.bed came from /Users/allenma/humangtf.ipynb
-#in breif i keep the longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
-#I also removed gene <3000bp and genes whose body or tss <0 in coordinates
-#below I will only keep genes that were anayized by both GR0-seq and RNA-seq
-beddir<-"/Shares/down/mixed/RNAGRO01132021/data/bedfiles/"
+# To standardize RNA-seq and GRO-seq comparisons, any gene bodys/tss that were in the data more than once were removed. 
+ori_worldbed <- "DS_Normalization/annotation/hg38_refseq.bed"
+# Below are the bed file used for GRO-seq anaysis
+# Filtered to Longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
+# Also removed gene <3000bp and genes whose body or tss <0 in coordinates
+# only keep genes that were analyzed by both GR0-seq and RNA-seq
+beddir<-"DS_Normalization/annotation"
 GROann <- paste(beddir,"masterannotation.bedlike",sep="")
 RNAann <-paste(RNAindir, "res_featureCounts_gene_idfull_143138.annotation.csv", sep="")
+
 
 #read the annotation tables
 annotationori <-read.table(ori_worldbed, sep="\t", col.names=c("chr", "start", "stop", "name", "score", "strand", "thickStart", "thickEnd", "itemRgb", "blockCount", "blockSizes", "blockStarts"))
@@ -205,22 +182,16 @@ GRObodyddsFull <- DESeqDataSetFromMatrix(countData = GRObodycountdat, colData = 
 GRObodydds <- collapseReplicates( GRObodyddsFull,groupby = GRObodyddsFull$samplegroup,run = GRObodyddsFull$samplegroup)
 GRObodydds <-DESeq(GRObodydds)
 
-person1 = "Ethan"
-person2 = "Eric"
+person1 = "T21"
+person2 = "D21"
 
 GROddstestres<-results(GRObodydds,  contrast=c("person", person1, person2))
 resdata <- as.data.frame(GROddstestres)
-resdata
 fullresdata <- merge(resdata,annotationmerge,by.x=0,by.y=1)
 fullresdata <- fullresdata[fullresdata$chr %in% minichrs,]
 
-#write.csv(fullresdata,"/scratch/Shares/dowell/for_marya/ds_normalization/deseq2/uncorrected_GRO_results.csv",sep=",")
 # draw CDF Plot
 fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
-
-sd(na.omit(fullresdata$log2FoldChange))
-sd(fullresdata[fullresdata$chr!="chr21" & !(is.na(fullresdata$log2FoldChange)),]$log2FoldChange)
-log2(1.5)-(2*sd(na.omit(fullresdata[fullresdata$chr!="chr21",]$log2FoldChange)))
 
 ggplot(fullresdata, aes(x = log2FoldChange,color=chr)) +
   stat_ecdf() +
@@ -230,10 +201,5 @@ ggplot(fullresdata, aes(x = log2FoldChange,color=chr)) +
   geom_vline(xintercept=log2(1.5)-(2*sd(fullresdata[fullresdata$chr!="chr21" & !(is.na(fullresdata$log2FoldChange)),]$log2FoldChange))
              ,color="purple",linetype="dotted") +
   theme_classic()
-
-nrow(fullresdata[fullresdata$chr=="chr21" & fullresdata$log2FoldChange<(-0.7),])
-
-ggsave("groseq_ethaneric_bettersd_chr22_cdf2.svg",path = "/scratch/Users/sahu0957/ds_normalization/figs",device = "svg")
-ggsave("groseq_ethaneric_bettersd_chr22_cdf2.png",path = "/scratch/Users/sahu0957/ds_normalization/figs",device = "png")
 
 
