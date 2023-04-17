@@ -1,9 +1,6 @@
-library("reshape2")
-library("plyr")
-library(dplyr)
+# This R script generates MLE and MAP violin plots of Log2 Fold Change for all genes on a given chromosome
+
 library("ggplot2")
-library("miscTools")
-library("stringr")
 library("DESeq2")
 library("tidyverse")
 theme_set(
@@ -74,7 +71,7 @@ RNAcountdat<- RNAcountdat %>%
   arrange(Gene_id) %>%
   column_to_rownames('Gene_id')
 
-# Make "fake" metadata in the same structure as the real data.
+# Make "simulated" metadata in the same structure as the real data.
 names <- c("filename","tech_rep","biological_rep","Family","Person","ploidy","samplegroup")
 RNAmetadata <- read.table(text = "",
                           col.names = names,
@@ -84,12 +81,12 @@ colnames(RNAmetadata) <- names
 
 # Using pseudonyms: Eddie is simulated T21, Elvis is simulated D21
 for (i in 1:(ncol(RNAcountdat)/2)){
-  newmetadata1 <- c(paste0("Elvis_rep",i,"_counts"),"0",as.character(i),"E","Elvis","ploidy_typical",paste0("Elvis_",i))
+  newmetadata1 <- c(paste0("D21_rep",i,"_counts"),"0",as.character(i),"E","T21","ploidy_typical",paste0("D_",i))
   RNAmetadata[nrow(RNAmetadata)+1,] <- newmetadata1
 }
 
 for (i in 1:(ncol(RNAcountdat)/2)){
-  newmetadata2 <- c(paste0("Eddie_rep",i,"_counts"),"0",as.character(i),"E","Eddie","ploidy_trisomy",paste0("Eddie_",i))
+  newmetadata2 <- c(paste0("T21_rep",i,"_counts"),"0",as.character(i),"E","T21","ploidy_trisomy",paste0("T_",i))
   RNAmetadata[nrow(RNAmetadata)+1,] <- newmetadata2
 }
 
@@ -99,8 +96,8 @@ for (i in 1:(ncol(RNAcountdat)/2)){
 RNAdds <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~Person)
 RNAdds <-DESeq(RNAdds, betaPrior = TRUE) # Earlier DESeq2 versions include a betaPrior for the intercept term
 
-person1 = "Eddie"
-person2 = "Elvis"
+person1 = "T21"
+person2 = "D21"
 RNAddsres<-results(RNAdds,  contrast=c("Person", person1, person2))
 resdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(resdata,annotationnew,by.x=0,by.y=4)
@@ -154,7 +151,7 @@ ddsFull <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata
 
 # Can run DESeq2 unaltered here to compare results
 ddsFull <- DESeq(ddsFull, betaPrior = TRUE)
-RNAddsres<-results(ddsFull,contrast=c("Person","Ethan","Eric"))
+RNAddsres<-results(ddsFull,contrast=c("Person","T21","D21"))
 resdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(resdata,annotationnew,by.x=0,by.y=4)
 common_fullresdata_test <- merge(fullresdata,common_ids,by.x=1,by.y=1)

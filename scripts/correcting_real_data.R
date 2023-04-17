@@ -14,12 +14,12 @@ GROseq_indir<-"DS_Normalization/counts/gro"
 RNAcoveragedat<-"res_featureCounts_gene_idfull_143138.coverage.csv"
 
 #Below is the bed that got used for RNA-seq. 
-#This is not the bed file that got used for GRO-seq exactly becuase to be acuurate in the GROS-seq I had to remove any gene bodys/tss that were in the data more than once. 
+# To standardize RNA-seq and GRO-seq comparisons, any gene bodys/tss that were in the data more than once were removed. 
 ori_worldbed <- "DS_Normalization/annotation/hg38_refseq.bed"
-#Below are the bed file I used for GRO-seq anaysis
-#in brief, I keep the longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
-#I also removed gene <3000bp and genes whose body or tss <0 in coordinates
-#below I will only keep genes that were analyzed by both GR0-seq and RNA-seq
+# Below are the bed file used for GRO-seq anaysis
+# Filtered to Longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
+# Also removed gene <3000bp and genes whose body or tss <0 in coordinates
+# only keep genes that were analyzed by both GR0-seq and RNA-seq
 beddir<-"DS_Normalization/annotation"
 GROann <- paste(beddir,"masterannotation.bedlike",sep="")
 RNAann <-paste(RNAindir, "res_featureCounts_gene_idfull_143138.annotation.csv", sep="")
@@ -91,13 +91,9 @@ RNAcountdat <- RNAcountdat[,-c(1:6)]
 ddsFull <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~biological_rep + Person)
 
 # Can run DESeq2 unaltered here to compare results
-# We use pseudonyms to identify each sample:
-# Eli: Father
-# Elizabeth: Mother
-# Eric: Son with D21
-# Ethan: Son with T21
+
 ddsFull <- DESeq(ddsFull)
-RNAddsres<-results(ddsFull,contrast=c("Person","Ethan","Eric"))
+RNAddsres<-results(ddsFull,contrast=c("Person","T21","D21"))
 resdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(resdata,annotationmerge,by.x=0,by.y=3)
 fullresdata <- merge(fullresdata,common_ids,by.x=1,by.y=1)
@@ -136,7 +132,7 @@ ggplot() +
   theme(legend.title = element_blank()) +
   theme(axis.title.x = element_blank())
 
-# Correcting things
+# Trisomy aware corrections
 
 ####REMOVING REPEATS####
 # We noticed that a lot of samples had specific genes that always appeared near 1.0, especially rRNA. Could it be
@@ -178,8 +174,8 @@ ddsFull <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata
 dds <- ddsFull
 ddsFull <- DESeq(ddsFull)
 
-person1 = "Ethan"
-person2 = "Eric"
+person1 = "T21"
+person2 = "D21"
 RNAddsres<-results(ddsFull,  contrast=c("Person", person1, person2))
 nomultisresdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(nomultisresdata,annotationmerge,by.x=0,by.y=3)
@@ -231,8 +227,8 @@ ddsCollapsed_normfactor<-estimateDispersionsFit(ddsCollapsed_normfactor) # and f
 ddsCollapsed_normfactor <- estimateDispersionsMAP(ddsCollapsed_normfactor) #adds a attr(,"dispPriorVar") to dispersionFunction(ddsCollapsed) 
 ddsCollapsed_normfactor <- nbinomWaldTest(ddsCollapsed_normfactor,betaPrior = FALSE) #adds both H and cooks to assays(ddsCollapsed)  both are for each sample you have.
 
-person1 = "Ethan"
-person2 = "Eric"
+person1 = "T21"
+person2 = "D21"
 RNAddsres<-results(ddsCollapsed_normfactor,  contrast=c("Person", person1, person2))
 resdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(resdata,annotationmerge,by.x=0,by.y=3)
@@ -283,8 +279,8 @@ ddsFull <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata
 dds <- ddsFull
 ddsFull <- DESeq(ddsFull,)
 
-person1 = "Ethan"
-person2 = "Eric"
+person1 = "T21"
+person2 = "D21"
 
 # Adjusting alternative hypothesis. We identify significant genes using altHypothesis LFC < |log2(1.5)|
 RNAddsres<-results(ddsFull,  contrast=c("Person", person1, person2),altHypothesis="lessAbs",alpha=.01,lfcThreshold=log2(1.5))
@@ -341,8 +337,8 @@ GRObodyddsFull <- DESeqDataSetFromMatrix(countData = GRObodycountdat, colData = 
 GRObodydds <- collapseReplicates( GRObodyddsFull,groupby = GRObodyddsFull$samplegroup,run = GRObodyddsFull$samplegroup)
 GRObodydds <-DESeq(GRObodydds)
 
-person1 = "Ethan"
-person2 = "Eric"
+person1 = "T21"
+person2 = "D21"
 
 GROddstestres<-results(GRObodydds,  contrast=c("person", person1, person2))
 resdata <- as.data.frame(GROddstestres)
@@ -397,8 +393,8 @@ dds <- collapseReplicates( ddsFull,groupby = ddsFull$samplegroup,run = ddsFull$s
 dds <- ddsFull
 ddsFull <- DESeq(ddsFull)
 
-person1 = "Ethan"
-person2 = "Eric"
+person1 = "T21"
+person2 = "D21"
 GROddsres<-results(ddsFull,  contrast=c("person", person1, person2))
 resdata <- as.data.frame(GROddsres)
 fullresdata <- merge(resdata,annotationmerge,by.x=0,by.y=3)
@@ -420,8 +416,8 @@ ddsCollapsed_normfactor <- estimateDispersionsMAP(ddsCollapsed_normfactor) #adds
 ddsCollapsed_normfactor <- nbinomWaldTest(ddsCollapsed_normfactor) #adds both H and cooks to assays(ddsCollapsed)  both are for each sample you have.
 
 
-person1 = "Ethan"
-person2 = "Eric"
+person1 = "T21"
+person2 = "D21"
 RNAddsres<-results(ddsCollapsed_normfactor,  contrast=c("person", person1, person2))
 resdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(resdata,annotationmerge,by.x=0,by.y=3)

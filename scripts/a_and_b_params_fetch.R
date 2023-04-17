@@ -1,9 +1,6 @@
-# Asymptotic Dispersion and Extra Poisson Noise extraction
-library("reshape2")
-library("plyr")
+# This script extracts and plots the fitted dispersion parameters from a DESeq2 Experiment (in the form a + b/x). We term these
+# parameters Asymptotic dispersion (a) and Extra-Poisson Noise (b)
 library("ggplot2")
-library("miscTools")
-library("stringr")
 library("DESeq2")
 library("tidyverse")
 theme_set(
@@ -15,12 +12,12 @@ GROseq_indir<-"DS_Normalization/counts/gro"
 RNAcoveragedat<-"res_featureCounts_gene_idfull_143138.coverage.csv"
 
 #Below is the bed that got used for RNA-seq. 
-#This is not the bed file that got used for GRO-seq exactly becuase to be acuurate in the GROS-seq I had to remove any gene bodys/tss that were in the data more than once. 
+# To standardize RNA-seq and GRO-seq comparisons, any gene bodys/tss that were in the data more than once were removed. 
 ori_worldbed <- "DS_Normalization/annotation/hg38_refseq.bed"
-#Below are the bed file I used for GRO-seq anaysis
-#in brief, I keep the longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
-#I also removed gene <3000bp and genes whose body or tss <0 in coordinates
-#below I will only keep genes that were analyzed by both GR0-seq and RNA-seq
+# Below are the bed file used for GRO-seq anaysis
+# Filtered to Longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
+# Also removed gene <3000bp and genes whose body or tss <0 in coordinates
+# only keep genes that were analyzed by both GR0-seq and RNA-seq
 beddir<-"DS_Normalization/annotation"
 GROann <- paste(beddir,"masterannotation.bedlike",sep="")
 RNAann <-paste(RNAindir, "res_featureCounts_gene_idfull_143138.annotation.csv", sep="")
@@ -114,6 +111,8 @@ RNAdds_shuffleremove21info <- function(whichshuffle) {
 
 disp_mat <- as.data.frame(matrix(, nrow = 0, ncol = 4))
 colnames(disp_mat)=c("asymptDisp", "extraPois", "varLogDispEsts", "dispPriorVar")
+
+# Perform random shuffling of genes to make sure it is dependent on chromosome 21 (and thus trisomy)
 for (i in 1:25)
 {rdf=as.data.frame(rbind(RNAdds_shuffleremove21info(i)))
 colnames(rdf)=c("asymptDisp", "extraPois", "varLogDispEsts", "dispPriorVar")

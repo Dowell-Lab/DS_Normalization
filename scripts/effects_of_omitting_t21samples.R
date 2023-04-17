@@ -1,8 +1,7 @@
-library("reshape2")
-library("plyr")
+# This script runs DESeq2 removing one of the sample groups (individuals and their replicates) to test the
+# effects of including trisomy 21
+
 library("ggplot2")
-library("miscTools")
-library("stringr")
 library("DESeq2")
 library("tidyverse")
 library("UpSetR")
@@ -15,12 +14,12 @@ GROseq_indir<-"DS_Normalization/counts/gro"
 RNAcoveragedat<-"res_featureCounts_gene_idfull_143138.coverage.csv"
 
 #Below is the bed that got used for RNA-seq. 
-#This is not the bed file that got used for GRO-seq exactly becuase to be acuurate in the GROS-seq I had to remove any gene bodys/tss that were in the data more than once. 
+# To standardize RNA-seq and GRO-seq comparisons, any gene bodys/tss that were in the data more than once were removed. 
 ori_worldbed <- "DS_Normalization/annotation/hg38_refseq.bed"
-#Below are the bed file I used for GRO-seq anaysis
-#in brief, I keep the longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
-#I also removed gene <3000bp and genes whose body or tss <0 in coordinates
-#below I will only keep genes that were analyzed by both GR0-seq and RNA-seq
+# Below are the bed file used for GRO-seq anaysis
+# Filtered to Longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
+# Also removed gene <3000bp and genes whose body or tss <0 in coordinates
+# only keep genes that were analyzed by both GR0-seq and RNA-seq
 beddir<-"DS_Normalization/annotation"
 GROann <- paste(beddir,"masterannotation.bedlike",sep="")
 RNAann <-paste(RNAindir, "res_featureCounts_gene_idfull_143138.annotation.csv", sep="")
@@ -91,14 +90,14 @@ rownames(RNAcountdat) <- RNAcountdat$Geneid
 RNAcountdat <- RNAcountdat[-c(1:6)]
 #run Deseq on RNA-seq with 21
 
-RNAcountdat <- RNAcountdat[,!(colnames(RNAcountdat) %like% "Ethan")]
-RNAmetadata <- RNAmetadata[!(RNAmetadata$Person %like% "Ethan"),]
+RNAcountdat <- RNAcountdat[,!(colnames(RNAcountdat) %like% "T21")]
+RNAmetadata <- RNAmetadata[!(RNAmetadata$Person %like% "T21"),]
 ddsFull <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~biological_rep + Person)
 
 # Can run DESeq2 unaltered here to compare results
 ddsFull <- DESeq(ddsFull)
-RNAddsres<-results(ddsFull,contrast=c("Person","Eli","Eric"))
-noethan_resdata <- as.data.frame(RNAddsres)
+RNAddsres<-results(ddsFull,contrast=c("Person","Father","D21"))
+not21_resdata <- as.data.frame(RNAddsres)
 
 #this is loading the metadata
 RNAmetadata=read.table("DS_Normalization/metadata/RNAinfo.txt", sep="\t", header=TRUE)
@@ -117,25 +116,25 @@ RNAcountdat<- RNAcountdat %>%
 RNAcountdat <- RNAcountdat[,-c(ncol(RNAcountdat))]
 RNAcountdat <- RNAcountdat[-c(1:6)]
 
-RNAcountdat <- RNAcountdat[,!(colnames(RNAcountdat) %like% "Elizabeth")]
-RNAmetadata <- RNAmetadata[!(RNAmetadata$Person %like% "Elizabeth"),]
+RNAcountdat <- RNAcountdat[,!(colnames(RNAcountdat) %like% "Mother")]
+RNAmetadata <- RNAmetadata[!(RNAmetadata$Person %like% "Mother"),]
 ddsFull <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~biological_rep + Person)
 
 # Can run DESeq2 unaltered here to compare results
 ddsFull <- DESeq(ddsFull)
-RNAddsres<-results(ddsFull,contrast=c("Person","Eli","Eric"))
-noeliz_resdata <- as.data.frame(RNAddsres)
-noethan_fullresdata <- merge(noethan_resdata,annotationnew,by.x=0,by.y=4)
-noethan_fullresdata <- merge(noethan_fullresdata,common_ids,by.x=1,by.y=1)
-noethan_fullresdata <- noethan_fullresdata[!(duplicated(noethan_fullresdata$V2)),]
+RNAddsres<-results(ddsFull,contrast=c("Person","Father","D21"))
+nomother_resdata <- as.data.frame(RNAddsres)
+not21_fullresdata <- merge(not21_resdata,annotationnew,by.x=0,by.y=4)
+not21_fullresdata <- merge(not21_fullresdata,common_ids,by.x=1,by.y=1)
+not21_fullresdata <- not21_fullresdata[!(duplicated(not21_fullresdata$V2)),]
 
-noeliz_fullresdata <- merge(noeliz_resdata,annotationnew,by.x=0,by.y=4)
-noeliz_fullresdata <- merge(noeliz_fullresdata,common_ids,by.x=1,by.y=1)
-noeliz_fullresdata <- noeliz_fullresdata[!(duplicated(noeliz_fullresdata$V2)),]
+nomother_fullresdata <- merge(nomother_resdata,annotationnew,by.x=0,by.y=4)
+nomother_fullresdata <- merge(nomother_fullresdata,common_ids,by.x=1,by.y=1)
+nomother_fullresdata <- nomother_fullresdata[!(duplicated(nomother_fullresdata$V2)),]
 
 bothrna_fullresdata <- merge(both_resdata,annotationnew,by.x=0,by.y=4)
 
-fullresdata <- noethan_fullresdata[noethan_fullresdata$chr %in% lesschrs,]
+fullresdata <- not21_fullresdata[not21_fullresdata$chr %in% lesschrs,]
 medresdata <- fullresdata[!(is.na(fullresdata$log2FoldChange)),]
 
 medians <- ddply(medresdata, .(chr), summarise, med = 2^(median(log2FoldChange)))
@@ -158,8 +157,8 @@ ggplot() +
   theme(legend.title = element_blank()) +
   theme(axis.title.x = element_blank())
 
-listInput <- list(no_ethan = na.omit(noethan_fullresdata[noethan_fullresdata$chr=="chr21" & noethan_fullresdata$padj<.01,]$Row.names), 
-                  no_elizabeth = na.omit(noeliz_fullresdata[noeliz_fullresdata$chr=="chr21" & noeliz_fullresdata$padj<.01,]$Row.names), 
+listInput <- list(no_t21 = na.omit(not21_fullresdata[not21_fullresdata$chr=="chr21" & not21_fullresdata$padj<.01,]$Row.names), 
+                  no_mother = na.omit(nomother_fullresdata[nomother_fullresdata$chr=="chr21" & nomother_fullresdata$padj<.01,]$Row.names), 
                   both = na.omit(bothrna_fullresdata[bothrna_fullresdata$chr=="chr21" & bothrna_fullresdata$padj<.01,]$Row.names))
 
 upset(fromList(listInput), order.by = "freq")
@@ -179,8 +178,8 @@ GRObodycountdat <- GRObodycountdat[,-c(1:6)]
 #run Deseq on RNA-seq with 21
 
 
-GRObodycountdat <- GRObodycountdat[,!(colnames(GRObodycountdat) %like% "Ethan")]
-GROmetadata <- GROmetadata[!(GROmetadata$person %like% "Ethan"),]
+GRObodycountdat <- GRObodycountdat[,!(colnames(GRObodycountdat) %like% "T21")]
+GROmetadata <- GROmetadata[!(GROmetadata$person %like% "T21"),]
 
 ddsFull <- DESeqDataSetFromMatrix(countData = GRObodycountdat, colData = GROmetadata, design = ~ libprep + person) #use this for all samples
 dds <- collapseReplicates( ddsFull,groupby = ddsFull$samplegroup,run = ddsFull$samplegroup )
@@ -188,8 +187,8 @@ dds <- ddsFull
 
 ddsFull <- DESeq(ddsFull)
 
-person1 = "Eli"
-person2 = "Eric"
+person1 = "Father"
+person2 = "D21"
 GROddsres<-results(ddsFull,  contrast=c("person", person1, person2))
 resdata <- as.data.frame(GROddsres)
 fullresdata <- merge(resdata,annotationnew,by.x=0,by.y=4)
@@ -206,8 +205,8 @@ rownames(GRObodycountdat) <- GRObodycountdat$Geneid
 GRObodycountdat <- GRObodycountdat[,-c(1:6)]
 #run Deseq on RNA-seq with 21
 
-GRObodycountdat <- GRObodycountdat[,!(colnames(GRObodycountdat) %like% "Elizabeth")]
-GROmetadata <- GROmetadata[!(GROmetadata$person %like% "Elizabeth"),]
+GRObodycountdat <- GRObodycountdat[,!(colnames(GRObodycountdat) %like% "Mother")]
+GROmetadata <- GROmetadata[!(GROmetadata$person %like% "Mother"),]
 
 ddsFull <- DESeqDataSetFromMatrix(countData = GRObodycountdat, colData = GROmetadata, design = ~ libprep + person) #use this for all samples
 dds <- collapseReplicates( ddsFull,groupby = ddsFull$samplegroup,run = ddsFull$samplegroup )
@@ -215,21 +214,21 @@ dds <- ddsFull
 
 ddsFull <- DESeq(ddsFull)
 
-person1 = "Eli"
-person2 = "Eric"
+person1 = "Father"
+person2 = "D21"
 GROddsres<-results(ddsFull,  contrast=c("person", person1, person2))
 resdata <- as.data.frame(GROddsres)
 
 fullresdata <- merge(resdata,annotationnew,by.x=0,by.y=4)
-noeliz_fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
+nomother_fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
 
-medresdata <- noeliz_fullresdata[!(is.na(noeliz_fullresdata$log2FoldChange)),]
+medresdata <- nomother_fullresdata[!(is.na(nomother_fullresdata$log2FoldChange)),]
 medians <- ddply(medresdata, .(chr), summarise, med = 2^(median(log2FoldChange)))
 signif_medresdata <- medresdata[medresdata$padj<.01,]
 notsignif_medresdata <- medresdata[medresdata$padj>=.01,]
 
 ggplot() + 
-  geom_violin(data=noeliz_fullresdata,trim=TRUE,aes(x=chr, y=log2FoldChange)) +
+  geom_violin(data=nomother_fullresdata,trim=TRUE,aes(x=chr, y=log2FoldChange)) +
   #  geom_hline(yintercept=log2(0.66667),linetype="dashed",color="red") +
   geom_hline(yintercept=0) +
   ylab(paste0("Log2FC")) +
@@ -243,8 +242,8 @@ ggplot() +
   theme(legend.title = element_blank()) +
   theme(axis.title.x = element_blank())
 
-listInput <- list(no_ethan = na.omit(noethan_fullresdata[noethan_fullresdata$chr=="chr21" & noethan_fullresdata$padj<.01,]$Row.names), 
-                  no_elizabeth = na.omit(noeliz_fullresdata[noeliz_fullresdata$chr=="chr21" & noeliz_fullresdata$padj<.01,]$Row.names), 
+listInput <- list(no_t21 = na.omit(not21_fullresdata[not21_fullresdata$chr=="chr21" & not21_fullresdata$padj<.01,]$Row.names), 
+                  no_mother = na.omit(nomother_fullresdata[nomother_fullresdata$chr=="chr21" & nomother_fullresdata$padj<.01,]$Row.names), 
                   both = na.omit(both_fullresdata[both_fullresdata$chr=="chr21" & both_fullresdata$padj<.01,]$Row.names))
 
 upset(fromList(listInput), order.by = "freq")

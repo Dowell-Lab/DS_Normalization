@@ -19,14 +19,24 @@ RNAmetadata <- as.data.frame(RNAmetadata,stringsAsFactors=FALSE)
 colnames(RNAmetadata) <- names
 
 # We have to make fake metadata here for the design matrix. Note that sims incorporate NO batch effects
-for (i in 1:(ncol(RNAcountdat)/2)){
-  newmetadata1 <- c(paste0("Elvis_rep",i,"_counts"),"0",as.character(i),"E","Elvis","ploidy_typical",paste0("Elvis_",i))
+for (i in 1:(ncol(RNAcountdat)/4)){
+  newmetadata1 <- c(paste0("D21_rep",i,"_counts"),"0",as.character(i),"E","D21","ploidy_typical",paste0("D21",i))
   RNAmetadata[nrow(RNAmetadata)+1,] <- newmetadata1
 }
 
-for (i in 1:(ncol(RNAcountdat)/2)){
-  newmetadata2 <- c(paste0("Eddie_rep",i,"_counts"),"0",as.character(i),"E","Eddie","ploidy_trisomy21",paste0("Eddie_",i))
-  RNAmetadata[nrow(RNAmetadata)+1,] <- newmetadata2
+for (i in 1:(ncol(RNAcountdat)/4)){
+  newmetadata1 <- c(paste0("Mother_rep",i,"_counts"),"0",as.character(i),"E","Mother","ploidy_typical",paste0("Mother",i))
+  RNAmetadata[nrow(RNAmetadata)+1,] <- newmetadata1
+}
+
+for (i in 1:(ncol(RNAcountdat)/4)){
+  newmetadata1 <- c(paste0("Father_rep",i,"_counts"),"0",as.character(i),"E","Father","ploidy_typical",paste0("Father",i))
+  RNAmetadata[nrow(RNAmetadata)+1,] <- newmetadata1
+}
+
+for (i in 1:(ncol(RNAcountdat)/4)){
+  newmetadata1 <- c(paste0("T21_rep",i,"_counts"),"0",as.character(i),"E","T21","ploidy_trisomy",paste0("T21_",i))
+  RNAmetadata[nrow(RNAmetadata)+1,] <- newmetadata1
 }
 
 RNAbed <-ori_worldbed
@@ -45,8 +55,8 @@ dds <- ddsFull
 
 ddsnocorr <- DESeq(ddsFull)
 
-person1 = "Eddie" #T21
-person2 = "Elvis" #D21
+person1 = "T21" #T21
+person2 = "D21" #D21
 RNAddsres<-results(ddsnocorr,  contrast=c("Person", person1, person2))
 resdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(resdata,annotationnew,by.x=0,by.y=4)
@@ -70,8 +80,8 @@ ddsCollapsed_normfactor<-estimateDispersionsFit(ddsCollapsed_normfactor) # and f
 ddsCollapsed_normfactor <- estimateDispersionsMAP(ddsCollapsed_normfactor) #adds a attr(,"dispPriorVar") to dispersionFunction(ddsCollapsed) 
 ddsCollapsed_normfactor <- nbinomWaldTest(ddsCollapsed_normfactor) #adds both H and cooks to assays(ddsCollapsed)  both are for each sample you have.
 
-person1 = "Eddie"
-person2 = "Elvis"
+person1 = "T21"
+person2 = "D21"
 RNAddsres<-results(ddsCollapsed_normfactor,  contrast=c("Person", person1, person2))
 resdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(resdata,annotationnew,by.x=0,by.y=4)
@@ -86,7 +96,6 @@ notsignif_medresdata <- medresdata[medresdata$padj>=.01,]
 ggplot() + 
   geom_violin(data=fullresdata,trim=TRUE,aes(x=chr, y=log2FoldChange)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  #  geom_hline(yintercept=log2(0.66667),linetype="dashed",color="red") +
   geom_hline(yintercept=0) +
   ylab(paste0("Log2FC")) +
   xlab("Chromosome") +
