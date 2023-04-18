@@ -1,0 +1,12 @@
+DSnormalization_corrected_RNA.ipynb: Generates CDFs of fold changes for chromosome 21 genes of trisomy-aware RNA and GRO-seq analyses. Generated plot seen in Figure 3A, Supplemental Figure 13
+DSnormalization_uncorrected_RNA.ipynb: Generates CDFs of fold changes for chromosome 21 genes of naive RNA and GRO-seq differential analysis. Generated plots seen in Supplemental Figure 2
+a_and_b_params_fetch.R: Generates boxplots for dispersion parameters from DESeq2 objects. Generated figure seen in Supplemental Figure 6
+correcting_real_data.R: Runs DESeq2 on real data, utilizing trisomy-aware parameterization. Also includes naive analysis for comparison. Generated plots seen in Figure 3B and 3C, Supplemental Figures 4, 10, 14 
+correcting_sim_data.R: Runs DESeq2 on simulated data, utilizing trisomy-aware parameterization. Also includes naive analysis for comparison, seen in Figure 2B, 2E, 2F, and 2G
+ds_simulate_reads_scipy.ipynb: Jupyter Notebook which generated simulated datasets with various parameterization
+effects_of_omitting_t21samples.R: Resulting significance calls when samples are omitted from analysis. Used to generate plots seen in Supplemental Figure 15
+facet_violins.R: Generates violin plots for each percentile of expression level. Generated plots seen in Supplemental Figure 3
+featurecounts_GRO_SE.sh: Used to count reads over regions using GRO-seq BAM files as input
+featurecounts_RNA_PE.sh: Used to count fragments over regions using RNA-seq BAM files as input
+mle_and_map_estimates.R: Runs DESeq2 and showcases differences between MLE and MAP fold-change estimations. Used to generate plots seen in Supplemental Figure 9
+variable_parameters_simulations.R: Runs DESeq2 on all simulated datasets, and generates line plots across each simulated parameter. Generated plots seen in Figures 2C and 2D, Supplemental Figures 5, 7, 8, 12, 
