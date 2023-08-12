@@ -9,9 +9,9 @@ library(plyr)
 library(ggplot2)
 library(tibble)
 ########RNA-SEQ#######
-RNAindir<-"DS_Normalization/counts/rna"
-GROseq_indir<-"DS_Normalization/counts/gro"
-RNAcoveragedat<-"res_featureCounts_gene_idfull_143138.coverage.csv"
+RNAindir<-"DS_Normalization/counts/rna/"
+GROseq_indir<-"DS_Normalization/counts/gro/"
+RNAcoveragedat<-"DS_Normalization/counts/rna/res_featureCounts_gene_idfull_143138.coverage.csv"
 
 #Below is the bed that got used for RNA-seq. 
 # To standardize RNA-seq and GRO-seq comparisons, any gene bodys/tss that were in the data more than once were removed. 
@@ -20,7 +20,7 @@ ori_worldbed <- "DS_Normalization/annotation/hg38_refseq.bed"
 # Filtered to Longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
 # Also removed gene <3000bp and genes whose body or tss <0 in coordinates
 # only keep genes that were analyzed by both GR0-seq and RNA-seq
-beddir<-"DS_Normalization/annotation"
+beddir<-"DS_Normalization/annotation/"
 GROann <- paste(beddir,"masterannotation.bedlike",sep="")
 RNAann <-paste(RNAindir, "res_featureCounts_gene_idfull_143138.annotation.csv", sep="")
 
@@ -60,34 +60,37 @@ common_ids <- read.table("DS_Normalization/annotation/refseq_to_common_id.txt",s
 common_ids <- common_ids[common_ids$V1 %in% annotationmerge$GeneID,]
 ####Uncorrected Real RNA-seq data####
 RNAbed <-ori_worldbed
+RNAmetadata=read.table("DS_Normalization/metadata/RNAinfo.txt", sep="\t", header=TRUE)
+
 filetable <- RNAmetadata
 masterannotationdf <- annotationmerge
 
-anuplodygenes <-masterannotationdf_only21[["name"]] #Only chr21 genes
+anuplodygenes <-chr21genes[["name"]] #Only chr21 genes
 baseploidy <- 2
 alt_ploidy <-3
 
-#this is loading the metadata
-RNAmetadata=read.table("DS_Normalization/metadata/RNAinfo.txt", sep="\t", header=TRUE)
 RNAmetadata$samplegroup <-paste(RNAmetadata$Person, "_", RNAmetadata$biological_rep, sep="")
+RNAcountdat <- read.csv(RNAcoveragedat,sep=",",skip=0)
+RNAcountdat
+# Filter to only those entries common between RNA and GRO
+RNAcountdat<- RNAcountdat %>%
+  filter(X %in% masterannotationdf$name) %>%
+  arrange(X)
 
-#this is where you would remove samples if they are bad
-RNAcountdat <- read.csv(RNAcoveragedat,sep="\t",skip=1)
+RNAcountdat <- merge(annotationmerge,RNAcountdat, by.x=0,by.y=1)
 
-# Filter by isoform based on Common IDs
-RNAcountdat$sum <- rowSums(RNAcountdat[,7:ncol(RNAcountdat)])/RNAcountdat$Length
+# As necessary, Filter by isoform based on Common IDs
+RNAcountdat$sum <- rowSums(RNAcountdat[,33:ncol(RNAcountdat)])/RNAcountdat$Length
 RNAcountdat <- merge(RNAcountdat,common_ids,by.x=1,by.y=1)
 RNAcountdat <- (RNAcountdat[order(RNAcountdat$V2,-RNAcountdat$sum),])
 RNAcountdat <- (RNAcountdat[!(duplicated(RNAcountdat$V2)),])
 RNAcountdat <- subset(RNAcountdat, select=-c(V2,sum))
-# Further filter to those common between RNA and GRO
-RNAcountdat<- RNAcountdat %>%
-    filter(Geneid %in% masterannotationdf$name) %>%
-  arrange(Geneid)
-rownames(RNAcountdat) <- RNAcountdat$Geneid
+colnames(RNAcountdat)
+rownames(RNAcountdat) <- RNAcountdat$Row.names
+RNAcountdat <- RNAcountdat[,c(33:ncol(RNAcountdat))]
+RNAcountdat
 
 #run Deseq on RNA-seq with 21
-RNAcountdat <- RNAcountdat[,-c(1:6)]
 ddsFull <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~biological_rep + Person)
 
 # Can run DESeq2 unaltered here to compare results
@@ -141,19 +144,16 @@ ggplot() +
 RNAbed <-ori_worldbed
 filetable <- RNAmetadata
 
-#this is where you would remove samples if they are bad
+#this is where you would remove samples as necessary
 RNAcountdat <- read.csv("DS_Normalization/counts/rna/featurecounts_rna_rmsked.sense.txt",
                         sep="\t", skip=1)
 
 # filter to only main chrs
 RNAcountdat <- RNAcountdat[RNAcountdat$Chr %in% minichrs,]
-
-
 # Remove long colnames to be more readable
 names <- colnames(RNAcountdat)
 names <- gsub(".*removed..","",names)
 colnames(RNAcountdat) <- names
-
 # Maximal isoform filter, based on Common ID
 RNAcountdat$sum <- rowSums(RNAcountdat[,7:ncol(RNAcountdat)])/RNAcountdat$Length
 RNAcountdat <- merge(RNAcountdat,common_ids,by.x=1,by.y=1)
@@ -179,6 +179,7 @@ person2 = "D21"
 RNAddsres<-results(ddsFull,  contrast=c("Person", person1, person2))
 nomultisresdata <- as.data.frame(RNAddsres)
 fullresdata <- merge(nomultisresdata,annotationmerge,by.x=0,by.y=3)
+fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
 medresdata <- fullresdata[!(is.na(fullresdata$log2FoldChange)),]
 
 medians <- ddply(medresdata, .(chr), summarise, med = 2^(median(log2FoldChange)))
@@ -187,8 +188,6 @@ medians
 padjusted_cutoff <- 0.01
 signif_medresdata <- medresdata[medresdata$padj<padjusted_cutoff,]
 notsignif_medresdata <- medresdata[medresdata$padj>=padjusted_cutoff,]
-
-fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
 
 ggplot() + 
   geom_violin(data=fullresdata,trim=TRUE,aes(x=chr, y=log2FoldChange)) +
@@ -218,7 +217,7 @@ normFactors <- normFactors/baseploidy
 ddsCollapsed<-DESeq(dds,betaPrior = FALSE)
 ddsCollapsed_normfactor <-estimateSizeFactors(dds,normMatrix=normFactors, controlGenes=controlgenes) #adds a column to colData(ddsCollapsed) called sizeFactor if you use normmatrix then normalizationFactors(ddsCollapsed) instead.
 norm_data <- as.data.frame(normalizationFactors(ddsCollapsed_normfactor))
-norm_dataframe_withannos <- merge(confused,masterannotationdf,by.x=0,by.y=0)
+norm_dataframe_withannos <- merge(norm_data,masterannotationdf,by.x=0,by.y=0)
 
 
 ### Correcting for ploidy should yield a distribution tightly around 1.0
@@ -236,6 +235,7 @@ fullresdata <- fullresdata[fullresdata$chr %in% minichrs,]
 
 # Adding in a minimum baseMean filter can be helpful for removing false positives (noisy genes). Can be done pre- or post-differential analysis
 fullresdata <- fullresdata[fullresdata$baseMean > 30,] # Remove genes with very low expression
+fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
 medresdata <- fullresdata[!(is.na(fullresdata$log2FoldChange)),]
 common_fullresdata_rna <- merge(fullresdata,common_ids,by.x=1,by.y=1)
 
@@ -257,16 +257,22 @@ ggplot() +
 
 #### Change the null hypothesis- Real RNA data ####
 
-#this is where you would remove samples if they are bad
+#this is where you would remove samples as necessary
 RNAcountdat <- read.csv("DS_Normalization/counts/rna/featurecounts_rna_rmsked.sense.txt",
                         sep="\t", skip=1)
 
-# filter to only canonical chrs
+# filter to only main chrs
 RNAcountdat <- RNAcountdat[RNAcountdat$Chr %in% minichrs,]
-
+# Remove long colnames to be more readable
 names <- colnames(RNAcountdat)
 names <- gsub(".*removed..","",names)
 colnames(RNAcountdat) <- names
+# Maximal isoform filter, based on Common ID
+RNAcountdat$sum <- rowSums(RNAcountdat[,7:ncol(RNAcountdat)])/RNAcountdat$Length
+RNAcountdat <- merge(RNAcountdat,common_ids,by.x=1,by.y=1)
+RNAcountdat <- (RNAcountdat[order(RNAcountdat$V2,-RNAcountdat$sum),])
+RNAcountdat <- (RNAcountdat[!(duplicated(RNAcountdat$V2)),])
+RNAcountdat <- subset(RNAcountdat, select=-c(V2,sum))
 
 RNAcountdat<- RNAcountdat %>%
   filter(Geneid %in% annotationmerge$GeneID) %>%
@@ -369,11 +375,6 @@ ggplot() +
 ### GRO-seq nopromoters, no multimaps, ploidy correction ####
 GRObodycountdat<- read.csv("DS_Normalization/counts/gro/featurecounts_gro_noproms_nomultis.sense.txt",
                            skip=1, sep="\t")
-
-# colnames are different due to my featurecounts script. fixing that here by removing the path. Kinda hacky, go remove in script!
-names <- colnames(GRObodycountdat)
-names <- gsub(".*E","E",names)
-colnames(GRObodycountdat) <- names
 GRObodycountdat$sum <- rowSums(GRObodycountdat[,7:ncol(GRObodycountdat)])/GRObodycountdat$Length
 GRObodycountdat <- merge(GRObodycountdat,common_ids,by.x=1,by.y=1)
 GRObodycountdat <- (GRObodycountdat[order(GRObodycountdat$V2,-GRObodycountdat$sum),])
@@ -384,12 +385,10 @@ rownames(GRObodycountdat) <- GRObodycountdat$Geneid
 GRObodycountdat <- GRObodycountdat[,-c(1:6)]
 GROmetadata=read.table("DS_Normalization/metadata/GROinfo.txt", sep="\t", header=TRUE)
 GROmetadata$samplegroup <-paste(GROmetadata$person, "_", GROmetadata$libprep, sep="")
-GROmetadata$nomultis <- nomultis_col
 
 #run Deseq on GRO-seq with 21
 ddsFull <- DESeqDataSetFromMatrix(countData = GRObodycountdat, colData = GROmetadata, design = ~ libprep + person) #use this for all samples
-dds <- collapseReplicates( ddsFull,groupby = ddsFull$samplegroup,run = ddsFull$samplegroup )
-
+ddsFull <- collapseReplicates( ddsFull,groupby = ddsFull$samplegroup,run = ddsFull$samplegroup )
 dds <- ddsFull
 ddsFull <- DESeq(ddsFull)
 
@@ -450,12 +449,6 @@ ggplot() +
 GRObodycountdat<- read.csv("DS_Normalization/counts/gro/featurecounts_gro_noproms_nomultis.sense.txt",
                            skip=1, sep="\t")
 
-
-# Cleaning up column names so that they're more legible.
-names <- colnames(GRObodycountdat)
-names <- gsub(".*E","E",names)
-colnames(GRObodycountdat) <- names
-
 nomultis_col <- colnames(GRObodycountdat)[7:22]
 
 GROmetadata=read.table("DS_Normalization/metadata/GROinfo.txt", sep="\t", header=TRUE)
@@ -470,7 +463,6 @@ rownames(GRObodycountdat) <- GRObodycountdat$Geneid
 GRObodycountdat <- GRObodycountdat[,-c(1:6)]
 #run Deseq on GRO-seq with 21
 ddsFull <- DESeqDataSetFromMatrix(countData = GRObodycountdat, colData = GROmetadata, design = ~ libprep + person) #use this for all samples
-#ddsFull$type <- relevel(ddsFull$type, "WT")
 ddsFull <- collapseReplicates( ddsFull,groupby = ddsFull$samplegroup,run = ddsFull$samplegroup )
 ddsFull <- DESeq(ddsFull)
 
@@ -483,8 +475,8 @@ fullresdata <- fullresdata[fullresdata$chr %in% lesschrs,]
 medresdata <- fullresdata[!(is.na(fullresdata$log2FoldChange)),]
 medians <- ddply(medresdata, .(chr), summarise, med = 2^(median(log2FoldChange)))
 
-signif_medresdata <- medresdata[medresdata$padj < padjust_cutoff,]
-notsignif_medresdata <- medresdata[medresdata$padj >= padjust_cutoff,]
+signif_medresdata <- medresdata[medresdata$padj < 0.05,]
+notsignif_medresdata <- medresdata[medresdata$padj >= 0.05,]
 
 ggplot() + 
   geom_violin(data=fullresdata,trim=TRUE,aes(x=chr, y=log2FoldChange)) +
