@@ -7,9 +7,9 @@ theme_set(
   theme_classic(base_size = 18)
 )
 
-RNAindir<-"DS_Normalization/counts/rna"
-GROseq_indir<-"DS_Normalization/counts/gro"
-RNAcoveragedat<-"res_featureCounts_gene_idfull_143138.coverage.csv"
+RNAindir<-"DS_Normalization/counts/rna/"
+GROseq_indir<-"DS_Normalization/counts/gro/"
+RNAcoveragedat<-"DS_Normalization/counts/rna/res_featureCounts_gene_idfull_143138.coverage.csv"
 
 #Below is the bed that got used for RNA-seq. 
 # To standardize RNA-seq and GRO-seq comparisons, any gene bodys/tss that were in the data more than once were removed. 
@@ -18,7 +18,7 @@ ori_worldbed <- "DS_Normalization/annotation/hg38_refseq.bed"
 # Filtered to Longest isoform with uniq body start and stop, body(+1000, -500) start and stop, tss(-500, +500) start and stop
 # Also removed gene <3000bp and genes whose body or tss <0 in coordinates
 # only keep genes that were analyzed by both GR0-seq and RNA-seq
-beddir<-"DS_Normalization/annotation"
+beddir<-"DS_Normalization/annotation/"
 GROann <- paste(beddir,"masterannotation.bedlike",sep="")
 RNAann <-paste(RNAindir, "res_featureCounts_gene_idfull_143138.annotation.csv", sep="")
 
@@ -58,19 +58,21 @@ common_ids <- read.table("DS_Normalization/annotation/refseq_to_common_id.txt",s
 common_ids <- common_ids[common_ids$V1 %in% annotationmerge$GeneID,]
 ####Uncorrected Real RNA-seq data####
 RNAbed <-ori_worldbed
+RNAmetadata=read.table("DS_Normalization/metadata/RNAinfo.txt", sep="\t", header=TRUE)
 filetable <- RNAmetadata
 masterannotationdf <- annotationmerge
 
-anuplodygenes <-masterannotationdf_only21[["name"]] #Only chr21 genes
+anuplodygenes <-chr21genes[["name"]] #Only chr21 genes
 baseploidy <- 2
 alt_ploidy <-3
 
 ### RNA ####
-RNAmetadata=read.table("DS_Normalization/metadata/RNAinfo.txt", sep="\t", header=TRUE)
 RNAmetadata$samplegroup <-paste(RNAmetadata$Person, "_", RNAmetadata$biological_rep, sep="")
 
 #this is where you would remove samples if they are bad
-RNAcountdat <- read.csv(RNAcoveragedat,sep="\t",skip=1)
+RNAcountdat <- read.csv(RNAcoveragedat,sep=",",skip=0)
+rownames(RNAcountdat) <- RNAcountdat$X
+RNAcountdat <- RNAcountdat[,-c(1)]
 
 RNAcountdatdropchr21 <-RNAcountdat %>%
   rownames_to_column('gene') %>%
@@ -84,11 +86,12 @@ RNAcountdatdropchr21shuffle <-RNAcountdat %>%
   arrange(gene) %>%
   column_to_rownames('gene')
 
-RNAcountdat$Gene_id <- rownames(RNAcountdat)
+
 RNAcountdat<- RNAcountdat %>%
-  filter(Gene_id %in% annotationmerge$name) %>%
-  arrange(Gene_id) %>%
-  column_to_rownames('Gene_id')
+  rownames_to_column('gene') %>%
+  filter(gene %in% annotationmergeno21shuffle$name) %>%
+  arrange(gene) %>%
+  column_to_rownames('gene')
 
 RNAdds <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~ biological_rep+ Person)
 RNAdds <-DESeq(RNAdds)
@@ -113,7 +116,7 @@ disp_mat <- as.data.frame(matrix(, nrow = 0, ncol = 4))
 colnames(disp_mat)=c("asymptDisp", "extraPois", "varLogDispEsts", "dispPriorVar")
 
 # Perform random shuffling of genes to make sure it is dependent on chromosome 21 (and thus trisomy)
-for (i in 1:25)
+for (i in 1:10)
 {rdf=as.data.frame(rbind(RNAdds_shuffleremove21info(i)))
 colnames(rdf)=c("asymptDisp", "extraPois", "varLogDispEsts", "dispPriorVar")
 disp_mat = rbind(disp_mat, rdf)}
@@ -149,8 +152,9 @@ ggplot(disp_mat, aes(x=sample, y=dispPriorVar)) +
   geom_boxplot() +
   theme_classic(base_size=18)
 
-### GRO ###
+###GRO ####
 RNAcountdat<- read.csv(paste0(GROseq_indir, "body.csv", sep=""))
+RNAcountdat
 
 RNAcountdatdropchr21 <-RNAcountdat %>%
   rownames_to_column('gene') %>%
@@ -165,23 +169,28 @@ RNAcountdatdropchr21shuffle <-RNAcountdat %>%
   column_to_rownames('gene')
 
 RNAcountdat$Gene_id <- rownames(RNAcountdat)
+
 RNAcountdat<- RNAcountdat %>%
   filter(Gene_id %in% annotationmerge$name) %>%
-  arrange(Gene_id) %>%
-  column_to_rownames('Gene_id')
+  arrange(Gene_id)
+
+RNAcountdat <- RNAcountdat[,-c(ncol(RNAcountdat))]
 
 RNAmetadata=read.table("DS_Normalization/metadata/GROinfo.txt", sep="\t", header=TRUE)
 RNAmetadata$samplegroup <-paste(RNAmetadata$person, "_", RNAmetadata$libprep, sep="")
 
-RNAdds <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~ biological_rep+ Person)
+RNAdds <- DESeqDataSetFromMatrix(countData = RNAcountdat, colData = RNAmetadata, design = ~ libprep + person)
+RNAdds <- collapseReplicates( RNAdds,groupby = RNAdds$samplegroup,run = RNAdds$samplegroup)
 RNAdds <-DESeq(RNAdds)
 
-RNAdds_no21dds <- DESeqDataSetFromMatrix(countData = RNAcountdatdropchr21, colData = RNAmetadata, design = ~ biological_rep+ Person)
+RNAdds_no21dds <- DESeqDataSetFromMatrix(countData = RNAcountdatdropchr21, colData = RNAmetadata, design = ~ libprep + person)
+RNAdds_no21dds <- collapseReplicates( RNAdds_no21dds,groupby = RNAdds_no21dds$samplegroup,run = RNAdds_no21dds$samplegroup)
 RNAdds_no21dds <-DESeq(RNAdds_no21dds)
 
 RNAdds_shuffleremove21info <- function(whichshuffle) {
   RNAcountdatdrop_sample <- RNAcountdat[sample(nrow(RNAcountdat), nrow(RNAcountdatdropchr21)), ]
-  RNAdds_shuffleno21 <- DESeqDataSetFromMatrix(countData = RNAcountdatdrop_sample, colData = RNAmetadata, design = ~ biological_rep+ Person)
+  RNAdds_shuffleno21 <- DESeqDataSetFromMatrix(countData = RNAcountdatdrop_sample, colData = RNAmetadata, design = ~ libprep + person)
+  RNAdds_shuffleno21 <- collapseReplicates( RNAdds_shuffleno21,groupby = RNAdds_shuffleno21$samplegroup,run = RNAdds_shuffleno21$samplegroup)
   RNAdds_shuffleno21dds <-estimateSizeFactors(RNAdds_shuffleno21) 
   RNAdds_shuffleno21dds <- estimateDispersionsGeneEst(RNAdds_shuffleno21dds) 
   RNAdds_shuffleno21dds<-estimateDispersionsFit(RNAdds_shuffleno21dds) 
@@ -195,7 +204,7 @@ RNAdds_shuffleremove21info <- function(whichshuffle) {
 disp_mat <- as.data.frame(matrix(, nrow = 0, ncol = 4))
 colnames(disp_mat)=c("asymptDisp", "extraPois", "varLogDispEsts", "dispPriorVar")
 
-for (i in 1:25)
+for (i in 1:10)
 {rdf=as.data.frame(rbind(RNAdds_shuffleremove21info(i)))
 colnames(rdf)=c("asymptDisp", "extraPois", "varLogDispEsts", "dispPriorVar")
 disp_mat = rbind(disp_mat, rdf)}
